@@ -1,33 +1,23 @@
-// Import the MQTT module and database module
 const mqtt = require('mqtt');
-const database = require('./database');
+const broker = 'mqtt://test.mosquitto.org';
+const topic = 'test';
 
-// MQTT broker URL
-const brokerUrl = 'mqtt://test.mosquitto.org';
+function startSubscriber() {
+    const client = mqtt.connect(broker);
 
-// Connect to MQTT broker
-const client = mqtt.connect(brokerUrl);
+    client.on('connect', () => {
+        console.log('Connected to MQTT broker');
 
-// Handle successful MQTT connection
-client.on('connect', () => {
-    console.log('Connected to MQTT broker');
-
-    // Subscribe to 'sensor/data' topic
-    client.subscribe('sensor/data', (err) => {
-        if (err) {
-            console.error('Subscribe error:', err);
-        } else {
-            console.log('Subscribed to sensor/data');
-        }
+        client.subscribe(topic, (err) => {
+            if (!err) {
+                console.log('Subscribed to topic:', topic);
+            }
+        });
     });
-});
 
-// Handle incoming MQTT messages
-client.on('message', (topic, message) => {
-    // Parse message
-    const data = JSON.parse(message.toString());
-    console.log('Received message from', topic, ':', data);
+    client.on('message', (topic, message) => {
+        console.log('Received message on topic', topic, ':', message.toString());
+    });
+}
 
-    // Store data in MongoDB
-    database.insertData(data);
-});
+module.exports = { start: startSubscriber };

@@ -1,31 +1,55 @@
-// Import the MQTT module
 const mqtt = require('mqtt');
+const mongoose = require('mongoose');
 
-// MQTT broker URL
-const brokerUrl = 'mqtt://test.mosquitto.org';
+const broker = 'mqtt://test.mosquitto.org';
+const topic = 'test';
 
-// Connect to MQTT broker
-const client = mqtt.connect(brokerUrl);
+const mongoURI = 'mongodb+srv://karan1:pedalsup@savsani.1ox8rei.mongodb.net/mqtttest';
 
-// Handle successful connection
-client.on('connect', () => {
-    console.log('Connected to MQTT broker');
+mongoose.connect(mongoURI);
 
-    // Publish message
-    setInterval(() => {
-        // Generate random sensor data
+const DataSchema = new mongoose.Schema({
+    temperature: Number,
+    humidity: Number,
+    timestamp: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+// Create model from schema
+const DataModel = mongoose.model('Data', DataSchema);
+
+// Function to save data to MongoDB
+function saveData(temperature, humidity) {
+    const newData = new DataModel({
+        temperature,
+        humidity
+    });
+
+    newData.save();
+}
+
+function startPublisher() {
+    const client = mqtt.connect(broker);
+    function publishData() {
+        const temperature = Math.floor(Math.random() * 100); 
+        const humidity = Math.floor(Math.random() * 100); 
         const data = {
-            temperature: Math.floor(Math.random() * 50) + 1,
-            humidity: Math.floor(Math.random() * 100) + 1
+            temperature,
+            humidity
         };
-        
-        // Publish data to 'sensor/data' topic
-        client.publish('sensor/data', JSON.stringify(data));
-        console.log('Message sent:', data);
-    }, 2000); // Publish message every 2 seconds
-});
 
-// Handle errors
-client.on('error', (error) => {
-    console.error('Error:', error);
-});
+        client.publish(topic, JSON.stringify(data));
+        console.log('Published:', data);
+
+        saveData(temperature, humidity);
+    }
+
+    client.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        setInterval(publishData, 5000);
+    });
+}
+
+module.exports = { start: startPublisher };
